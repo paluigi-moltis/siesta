@@ -170,7 +170,7 @@ class PipelineRun(unittest.TestCase):
             fake_pi.chmod(0o755)
         env = os.environ | {
             "SIESTA_FACTORY": str(self.tmp / "factory"),
-            "PYTHONPATH": str(FACTORY),
+            "PYTHONPATH": str(FACTORY.parent),
             "PATH": f"{bin_path}:{os.environ['PATH']}",
             "FAKE_PI_SCENARIO": scenario,
             "FAKE_PI_LOG": str(self.tmp / "pi_calls.log"),
@@ -711,7 +711,7 @@ class RootLevelSuiteVerifyFallback(unittest.TestCase):
         fake_pi.chmod(0o755)
         env = os.environ | {
             "SIESTA_FACTORY": str(self.tmp / "factory"),
-            "PYTHONPATH": str(FACTORY),
+            "PYTHONPATH": str(FACTORY.parent),
             "PATH": f"{bin_path}:{os.environ['PATH']}",
             "FAKE_PI_SCENARIO": scenario,
             "FAKE_PI_LOG": str(self.tmp / "pi_calls.log"),

@@ -45,8 +45,8 @@ class PipelineProcess:
         self.proc: subprocess.Popen | None = None
         self.output: list[str] = []
         self.state = "idle"
-        self.on_output = None            # callback(str line)
-        self.on_state = None             # callback(state str)
+        self.on_output = None            # callback(str line)  # noqa: RUF012
+        self.on_state = None             # callback(state str)  # noqa: RUF012
 
     def running(self) -> bool:
         return self.proc is not None and self.proc.poll() is None
@@ -89,14 +89,18 @@ class PipelineProcess:
 
     def watch(self) -> None:
         """Drain stdout in a thread; call once, right after start()."""
+        proc = self.proc
+        if proc is None:
+            return
+
         def drain():
-            proc, self.proc = self.proc, self.proc
             try:
                 for line in proc.stdout:
                     self._emit(line.rstrip("\n"))
             finally:
                 rc = proc.wait()
                 self._set_state("done" if rc == 0 else "failed")
+
         threading.Thread(target=drain, daemon=True).start()
 
     def stop(self) -> None:
@@ -146,8 +150,16 @@ class PySiestaApp:
         self.page.title = "PySiesta 💤"
         self.page.padding = 0
         self._apply_theme()
-        self.pipe.on_output = self._on_pipeline_output
-        self.pipe.on_state = self._on_pipeline_state
+        # both callbacks fire on the subprocess drain thread — marshal
+        # every UI mutation onto the page's event loop (Flet thread safety)
+        async def _run_output(line: str):
+            self._on_pipeline_output(line)
+
+        async def _run_state(state: str):
+            self._on_pipeline_state(state)
+
+        self.pipe.on_output = lambda line: self.page.run_task(_run_output, line)
+        self.pipe.on_state = lambda state: self.page.run_task(_run_state, state)
         self.page.add(self._build_root())
         self.page.update()
         self._log("Welcome to PySesta 💤 — configure providers, then build.")
@@ -264,11 +276,17 @@ class PySiestaApp:
                          args=(self.session, idea), daemon=True).start()
 
     def _interview_thread(self, session: InterviewSession, idea: str) -> None:
+        # UI mutations from a worker thread must be marshalled onto the
+        # page's event loop (Flet is not thread-safe) — page.run_task
+        # schedules the coroutine on the UI thread.
+        async def _ui(fn, *args):
+            fn(*args)
+
         def say(msg: str | None) -> None:
-            self._chat_bubble("agent", msg)
+            self.page.run_task(_ui, self._chat_bubble, "agent", msg)
 
         def finish() -> None:
-            self._after_interview(session, idea)
+            self.page.run_task(_ui, self._after_interview, session, idea)
 
         session.run(say, finish)
 

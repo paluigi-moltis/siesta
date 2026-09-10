@@ -1,16 +1,25 @@
 # AGENTS.md — Siesta Agent System
 
+> **PySiesta fork note:** this document describes the agent architecture as
+> inherited from upstream. Paths were updated to the fork's `src/`-layout:
+> the pipeline lives in `src/siesta/pipeline/`, skills in
+> `src/siesta/skills/` (self-improving) and `src/siesta/agents_skills/`
+> (addyosmani, read-only). At runtime these unpack to the data home
+> (`~/.local/share/pysiesta`, override with `SIESTA_DATA_HOME`); `<data-home>`
+> below refers to that directory. Role routing is user-configurable per
+> provider — see the README's *LLM Provider Configuration* reference.
+
 This document describes the autonomous agent system that powers Siesta: the roles, how they interact, the skills they use, and the knowledge base that connects them.
 
 ---
 
 ## Overview
 
-Siesta uses a **dual-model architecture**: GLM 5.2 (via `pi`, Ollama Cloud) plays the roles that must hold the text protocol — planner, consultant, human-proxy — while Gemma4 31B (Ollama Cloud) is the worker that writes, reviews and verifies code. A pipeline orchestrator (`python3 -m pipeline`) coordinates them across 7 phases, with per-issue context loading, post-issue logging, and per-issue learning. The local Ollama daemon acts as the proxy to Ollama Cloud; since round-9 all roles route to cloud models (the local 8B worker's 8K served window was the pomodoro run's bottleneck).
+Siesta uses a **dual-model architecture**: GLM 5.2 (via `pi`, Ollama Cloud) plays the roles that must hold the text protocol — planner, consultant, human-proxy — while Gemma4 31B (Ollama Cloud) is the worker that writes, reviews and verifies code. A pipeline orchestrator (`python3 -m siesta.pipeline`) coordinates them across 7 phases, with per-issue context loading, post-issue logging, and per-issue learning. The local Ollama daemon acts as the proxy to Ollama Cloud; since round-9 all roles route to cloud models (the local 8B worker's 8K served window was the pomodoro run's bottleneck).
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                  python3 -m pipeline                         │
+│                  python3 -m siesta.pipeline                         │
 │                   (Orchestrator - Phase 0-7)                  │
 │                                                              │
 │  ┌──────────────┐    ┌──────────────┐    ┌───────────────┐  │
@@ -191,7 +200,7 @@ The learner runs through the consultant role on GLM 5.2 (#46): the strict `LEARN
 - Always includes what's done well
 - Verdict: APPROVE or REQUEST CHANGES
 
-**Persona definition:** [`.agents/agents/code-reviewer.md`](.agents/agents/code-reviewer.md)
+**Persona definition:** [`docs/agents/code-reviewer.md`](docs/agents/code-reviewer.md)
 
 ---
 
@@ -377,38 +386,38 @@ Agents don't load the full KB. They load in levels:
 | 2 — Filtered by type | All decisions, or all blockers | Low | When looking for specific patterns |
 | 3 — Full node | Complete detail field | Higher | When a specific node is relevant |
 
-### KB Operations (via `python3 -m pipeline.kb`)
+### KB Operations (via `python3 -m siesta.pipeline.kb`)
 
 ```bash
-# Query summaries (cheapest; run from factory/ or set PYTHONPATH=factory)
-python3 -m pipeline.kb query kb/graph.json --summary-only
+# Query summaries (cheapest; run from the repo root)
+python3 -m siesta.pipeline.kb query kb/graph.json --summary-only
 
 # Query specific type
-python3 -m pipeline.kb query kb/graph.json --type decision --summary-only
+python3 -m siesta.pipeline.kb query kb/graph.json --type decision --summary-only
 
 # Get full node detail
-python3 -m pipeline.kb get-node kb/graph.json n1695234567_12345
+python3 -m siesta.pipeline.kb get-node kb/graph.json n1695234567_12345
 
 # Append a decision
-python3 -m pipeline.kb append-node kb/graph.json "decision" "Summary" "Full detail"
+python3 -m siesta.pipeline.kb append-node kb/graph.json "decision" "Summary" "Full detail"
 
 # Link two nodes
-python3 -m pipeline.kb append-edge kb/graph.json n123 n456 applied_to
+python3 -m siesta.pipeline.kb append-edge kb/graph.json n123 n456 applied_to
 
 # Initialize fresh KB
-python3 -m pipeline.kb init-project kb/graph.json
+python3 -m siesta.pipeline.kb init-project kb/graph.json
 ```
 
 ### Two KB Tiers
 
 | KB | Location | Scope | Purpose |
 |----|----------|-------|---------|
-| Project KB | `factory/projects/<name>/kb/graph.json` | One project | Track decisions, blockers, consultations for this project |
-| Global KB | `factory/kb/global-graph.json` | All projects | Standing architectural principles (node type `principle`) plus accumulated learnings across projects — the factory's long-term memory |
+| Project KB | `<data-home>/projects/<name>/kb/graph.json` | One project | Track decisions, blockers, consultations for this project |
+| Global KB | `<data-home>/kb/global-graph.json` | All projects | Standing architectural principles (node type `principle`) plus accumulated learnings across projects — the factory's long-term memory |
 
 ### Standing Architectural Principles
 
-The global KB holds `principle` nodes — standing rules that constrain every project. They are injected automatically into the Phase 1 spec prompt and into every per-issue worker context (`phases.pre_issue()`). Current principles (query with `python3 -m pipeline.kb query factory/kb/global-graph.json --type principle --summary-only`):
+The global KB holds `principle` nodes — standing rules that constrain every project. They are injected automatically into the Phase 1 spec prompt and into every per-issue worker context (`phases.pre_issue()`). Current principles (query with `python3 -m siesta.pipeline.kb query <data-home>/kb/global-graph.json --type principle --summary-only`):
 
 1. Personal projects only — runs entirely on the local computer, minimal infrastructure
 2. Simplicity is the core rule — fewer lines of code wins
@@ -465,7 +474,7 @@ a fresh clone brings the 15 sources; no separate skill-install step exists. Ther
 are no runtime view folders: `run_pi()` loads each skill with an explicit
 `--skill <path>` flag pointing at the tracked sources. `.pi/`, `.qwen/` and
 `.claude/` remain in `.gitignore` only as guards (the `pi` CLI can write
-runtime state there). The learner may only touch `factory/skills/`.
+runtime state there). The learner may only touch `src/siesta/skills/`.
 
 ### Skill Categories
 
@@ -493,7 +502,7 @@ runtime state there). The learner may only touch `factory/skills/`.
 - `kb-manager` — KB graph operations with progressive disclosure
 - `factory-learner` — Per-issue and project-level learning
 
-The learner can modify factory skills (add Red Flags, Rationalizations, Process steps, Verification checks) but never touches addyosmani skills — manual factory adaptations to addyosmani skills (e.g. the autonomous no-tools output protocol) are made by the human directly in `.agents/skills/`.
+The learner can modify factory skills (add Red Flags, Rationalizations, Process steps, Verification checks) but never touches addyosmani skills — manual factory adaptations to addyosmani skills (e.g. the autonomous no-tools output protocol) are made by the human directly in `src/siesta/agents_skills/`.
 
 ---
 
@@ -501,11 +510,11 @@ The learner can modify factory skills (add Red Flags, Rationalizations, Process 
 
 ### Definition of Done
 
-[`.agents/references/definition-of-done.md`](.agents/references/definition-of-done.md) — The standing checklist every change must clear before counting as done. Covers correctness, quality, integration, documentation, and ship-readiness.
+[`docs/references/definition-of-done.md`](docs/references/definition-of-done.md) — The standing checklist every change must clear before counting as done. Covers correctness, quality, integration, documentation, and ship-readiness.
 
 ### Security Checklist
 
-[`.agents/references/security-checklist.md`](.agents/references/security-checklist.md) — Quick reference for web application security including threat modeling, authentication, input validation, security headers, CORS, data protection, and OWASP Top 10.
+[`docs/references/security-checklist.md`](docs/references/security-checklist.md) — Quick reference for web application security including threat modeling, authentication, input validation, security headers, CORS, data protection, and OWASP Top 10.
 
 ---
 
@@ -513,7 +522,7 @@ The learner can modify factory skills (add Red Flags, Rationalizations, Process 
 
 ### Model Routing
 
-[`factory/config/models.json`](factory/config/models.json):
+[`src/siesta/config/models.json`](src/siesta/config/models.json):
 
 ```json
 {
@@ -570,7 +579,7 @@ rules the pipeline depends on:
 
 ### KB Schema
 
-[`factory/kb/schema.json`](factory/kb/schema.json) — Defines valid node types and edge types. Used by `pipeline/kb.py` (the `Graph` store) to validate node types before appending.
+[`src/siesta/kb/schema.json`](src/siesta/kb/schema.json) — Defines valid node types and edge types. Used by `pipeline/kb.py` (the `Graph` store) to validate node types before appending.
 
 ---
 
@@ -578,24 +587,24 @@ rules the pipeline depends on:
 
 ### Add a new factory skill
 
-1. Create `factory/skills/<skill-name>/SKILL.md` with the standard format
+1. Create `src/siesta/skills/<skill-name>/SKILL.md` with the standard format
 2. Commit it — a fresh clone of the repo must bring the new skill
-3. Reference it in the pipeline via `FACTORY_SKILLS / "<skill-name>"` in `factory/pipeline/phases.py`
+3. Reference it in the pipeline via `FACTORY_SKILLS / "<skill-name>"` in `src/siesta/pipeline/phases.py`
 4. The factory-learner may automatically create skills if it detects novel patterns
 
 ### Change model routing
 
-Edit `factory/config/models.json`. The pipeline reads this at startup. You can use any Ollama-compatible model.
+Edit `src/siesta/config/models.json`. The pipeline reads this at startup. You can use any Ollama-compatible model.
 
 ### Add a new KB node type
 
-1. Add it to `factory/kb/schema.json` under `node_types`
-2. Use it in `python3 -m pipeline.kb append-node` calls
-3. Query it with `python3 -m pipeline.kb query <graph> --type <new_type>`
+1. Add it to `src/siesta/kb/schema.json` under `node_types`
+2. Use it in `python3 -m siesta.pipeline.kb append-node` calls
+3. Query it with `python3 -m siesta.pipeline.kb query <graph> --type <new_type>`
 
 ### Add a new pipeline phase
 
-Edit `factory/pipeline/phases.py` — each phase is a Python function. Add a `phaseN()` function, then wire it into the dispatch in `factory/pipeline/__main__.py` (following the skip/resume pattern of the existing phases). Use `phase(N, "TITLE")` from `pipeline.pi` for consistent output.
+Edit `src/siesta/pipeline/phases.py` — each phase is a Python function. Add a `phaseN()` function, then wire it into the dispatch in `src/siesta/pipeline/__main__.py` (following the skip/resume pattern of the existing phases). Use `phase(N, "TITLE")` from `pipeline.pi` for consistent output.
 
 ---
 
@@ -603,22 +612,22 @@ Edit `factory/pipeline/phases.py` — each phase is a Python function. Add a `ph
 
 | File | Purpose |
 |------|---------|
-| `factory/bin/siesta.sh` | Entry point — takes idea, runs pipeline |
-| `factory/pipeline.log` | Full orchestrator narration, tee'd from the console (runtime, gitignored) |
-| `factory/pipeline/__main__.py` | Orchestrator — checkpoint, failure trap, phase dispatch, summary |
-| `factory/pipeline/phases.py` | Phase bodies 0-7 (interview, spec, plan, execute ladder, review, verify + runtime smoke) |
-| `factory/pipeline/learn.py` | Per-issue micro-learning + project-level learning (Phase 7) |
-| `factory/pipeline/pi.py` | Single `run_pi()` wrapper — every model call: one positional prompt, thinking pinning, call timeout |
-| `factory/pipeline/kb.py` | KB graph store + `python3 -m pipeline.kb` CLI shim |
-| `factory/pipeline/text.py` | Anchored marker regexes + pure parsers |
-| `factory/tests/` | Unit + fake-pi integration tests (`python3 -m unittest discover -s tests`) |
-| `factory/BACKLOG.md` | Findings + corrections backlog — also the changelog of what Siesta learned about itself |
-| `factory/config/models.json` | Model routing config |
-| `factory/kb/schema.json` | KB node/edge type schema |
-| `factory/kb/global-graph.json` | Cross-project accumulated learnings |
-| `factory/skills/*/SKILL.md` | 5 custom factory skills |
-| `.agents/skills/*/SKILL.md` | 10 addyosmani skills (with factory-tailoring sections) |
-| `.agents/agents/code-reviewer.md` | Code reviewer persona |
-| `.agents/hooks/pre-issue.sh`, `post-issue.sh` | **#27: bash-era legacy — kept per decision (2026-09-04) but the Python port never executes them.** The equivalent logic lives in `phases.pre_issue()` / `phases.post_issue()`. Do not expect these scripts to run. |
-| `.agents/references/definition-of-done.md` | Standing done checklist |
-| `.agents/references/security-checklist.md` | Security quick reference |
+| `src/siesta/gui/app.py` + `src/siesta/pipeline/cli.py` | Entry points — `pysiesta` (GUI) and `pysiesta-cli` (headless) |
+| `<data-home>/pipeline.log | Full orchestrator narration (runtime, gitignored) |
+| `src/siesta/pipeline/__main__.py` | Orchestrator — checkpoint, failure trap, phase dispatch, summary |
+| `src/siesta/pipeline/phases.py` | Phase bodies 0-7 (interview, spec, plan, execute ladder, review, verify + runtime smoke) |
+| `src/siesta/pipeline/learn.py` | Per-issue micro-learning + project-level learning (Phase 7) |
+| `src/siesta/pipeline/pi.py` | Single `run_pi()` wrapper — every model call: one positional prompt, thinking pinning, call timeout |
+| `src/siesta/pipeline/kb.py` | KB graph store + `python3 -m siesta.pipeline.kb` CLI shim |
+| `src/siesta/pipeline/text.py` | Anchored marker regexes + pure parsers |
+| `tests/` | Unit + fake-pi integration tests (`uv run pytest tests/`) |
+| `docs/BACKLOG.md` | Findings + corrections backlog — also the changelog of what Siesta learned about itself |
+| `src/siesta/config/models.json` | Model routing config |
+| `src/siesta/kb/schema.json` | KB node/edge type schema |
+| `<data-home>/kb/global-graph.json` | Cross-project accumulated learnings |
+| `src/siesta/skills/*/SKILL.md` | 5 custom factory skills |
+| `src/siesta/agents_skills/*/SKILL.md` | 10 addyosmani skills (with factory-tailoring sections) |
+| `docs/agents/code-reviewer.md` | Code reviewer persona |
+| `docs/hooks/pre-issue.sh`, `post-issue.sh` | **#27: bash-era legacy — kept per decision (2026-09-04) but the Python port never executes them.** The equivalent logic lives in `phases.pre_issue()` / `phases.post_issue()`. Do not expect these scripts to run. |
+| `docs/references/definition-of-done.md` | Standing done checklist |
+| `docs/references/security-checklist.md` | Security quick reference |

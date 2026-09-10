@@ -120,13 +120,10 @@ def provider_to_catalog_entry(pid: str, provider: dict) -> dict:
 
     The API key is passed as the ENV-VAR NAME (pi resolves it at request
     time), so keys only need to exist where `pi` actually runs and are
-    never copied into the catalog file.
+    never copied into the catalog file. An unset variable still
+    registers — check_env_vars() surfaces that at save time.
     """
     api_key_env = provider.get("api_key_env")
-    if api_key_env and not os.environ.get(api_key_env):
-        # still register — pi resolves lazily — but the run will fail on
-        # first call; the GUI warns about this at save time.
-        pass
     ctx = provider.get("context_window", DEFAULT_CONTEXT_WINDOW)
     mt = provider.get("max_tokens", DEFAULT_MAX_TOKENS)
     entry = {

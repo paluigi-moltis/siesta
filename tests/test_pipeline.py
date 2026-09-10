@@ -60,8 +60,8 @@ class StartupContextGuard(unittest.TestCase):
             pipeline_main._warn_context_mismatches()
         # planner and consultant share a model — dedupe leaves the distinct
         # routed models, in role order (config is the truth).
-        from pipeline.pi import ROLE
-        routed = [ROLE[r]["model"] for r in ("planner", "worker", "consultant")]
+        from siesta.pipeline.pi import _role
+        routed = [_role(r)["model"] for r in ("planner", "worker", "consultant")]
         self.assertEqual(calls, list(dict.fromkeys(routed)))
 
     def test_guard_silent_when_no_mismatch(self):

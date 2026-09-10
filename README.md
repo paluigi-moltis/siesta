@@ -310,9 +310,9 @@ combination works — all local, all remote, or mixed.
 | **Run** | Live pipeline log, phase progress bar, Stop button, link to the projects folder. |
 | **Configure** | Providers (type/endpoint/env-var/models), role routing dropdowns, working directory, dark/light. Saved across restarts. |
 
-Generated projects land in the configured working directory
-(`~/pysiesta-projects` by default via the GUI, `factory/projects/` for
-headless runs without `SIESTA_PROJECTS_DIR`).
+Generated projects land in the configured working directory. Without one
+(GUI never configured, or headless without `SIESTA_PROJECTS_DIR`), they go
+to `<data-home>/projects` — never inside the installed package.
 
 ## Headless CLI
 
@@ -329,7 +329,7 @@ or an `--intent-file` (GUI internals).
 
 | Variable | Purpose |
 |---|---|
-| `SIESTA_PROJECTS_DIR` | where generated projects go (GUI sets this from the configured working directory) |
+| `SIESTA_PROJECTS_DIR` | where generated projects go (GUI sets this from the configured working directory; default `<data-home>/projects`) |
 | `SIESTA_CONFIG_HOME` | override `~/.config/siesta` |
 | `SIESTA_DATA_HOME` | override `~/.local/share/pysiesta` (packaged skills/KB) |
 | `SIESTA_PI_CATALOG` | override `~/.pi/agent/models.json` path |
@@ -364,6 +364,7 @@ siesta/
 │   ├── skills/            # 5 factory skills (self-improving)
 │   ├── kb/                # schema + global graph
 │   └── agents_skills/     # 10 addyosmani skills
+├── docs/                  # upstream BACKLOG, references, personas, legacy hooks
 ├── tests/                 # unit + stub-pi integration + GUI subprocess E2E
 └── pyproject.toml         # uv/hatch build; entry points
 ```
@@ -390,6 +391,26 @@ for details.
 MIT — see [LICENSE](LICENSE).
 
 ## Change Log
+
+### 0.1.1 (review fixes)
+- **Routing staleness:** `build_args()` now resolves role routing through the
+  effective config on every call — a GUI configuration save takes effect on
+  the next model call, no re-import needed.
+- **Projects location:** default projects dir is `<data-home>/projects`, no
+  longer inside the installed package tree (`site-packages`/repo checkout).
+- **Self-improvement data safety:** `skills/` and `kb/` in the data home are
+  seeded from the package only when missing — a package upgrade can never
+  wipe learned skills or the accumulated global KB.
+- **GUI thread safety:** interview and pipeline callbacks marshal UI updates
+  through `page.run_task` (Flet event loop), no direct cross-thread updates.
+- **KB shim import root:** child `PYTHONPATH` points at the package parent
+  (import root for `siesta.pipeline.kb`), not `src/siesta` itself.
+- **Test hermeticity:** the suite pins `SIESTA_CONFIG_HOME` to a temp dir —
+  a developer's real `~/.config/siesta` can no longer leak into tests.
+- **Repo hygiene:** removed the stale `factory/bin/siesta.sh` entry script
+  and the unused `.agents/` tree (pipeline uses the packaged copy);
+  upstream docs moved to `docs/`; AGENTS.md paths updated to the fork layout.
+- Tests: 205 passing (+config-reload regression suite).
 
 ### 0.1.0 (fork release)
 - Restructured to `src/`-layout package `pysiesta` (import name `siesta`); skills, KB and default config ship as package data and unpack to `~/.local/share/pysiesta`.

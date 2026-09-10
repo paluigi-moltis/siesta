@@ -17,8 +17,8 @@ from siesta.pipeline.kb import Graph
 from siesta.pipeline.pi import (
     FACTORY,
     GLOBAL_KB,
-    ROLE,
     _declared_context,
+    _role,
     err,
     log,
     ok,
@@ -80,7 +80,7 @@ def _warn_context_mismatches() -> None:
     Never crash the run: a broken probe is silence, not a halt."""
     seen: set[str] = set()
     for role in ("planner", "worker", "consultant"):
-        model = ROLE[role]["model"]
+        model = _role(role)["model"]
         if model in seen:
             continue          # planner and consultant share GLM — warn once
         seen.add(model)
@@ -118,11 +118,19 @@ def main(argv: list[str] | None = None) -> None:
 def projects_dir() -> Path:
     """Where generated projects land.
 
-    SIESTA_PROJECTS_DIR (set by the GUI from the configured working
-    directory) wins; otherwise the factory's own projects/ tree.
+    Precedence: SIESTA_PROJECTS_DIR (set by the GUI from the configured
+    working directory) > the data home's projects/ tree. Never the
+    installed package dir — a wheel install must not accumulate generated
+    repos inside site-packages, and the repo checkout must not either.
     """
     override = os.environ.get("SIESTA_PROJECTS_DIR")
-    return Path(override) if override else FACTORY / "projects"
+    if override:
+        return Path(override)
+    if os.environ.get("SIESTA_FACTORY"):
+        return FACTORY / "projects"
+    base = os.environ.get("SIESTA_DATA_HOME",
+                          Path.home() / ".local" / "share" / "pysieta")
+    return Path(base) / "projects"
 
 
 def _failure_learn(args, e) -> None:

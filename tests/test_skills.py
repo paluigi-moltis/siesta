@@ -37,9 +37,11 @@ class FactorySkillDocs(unittest.TestCase):
 
 class ChildEnv(unittest.TestCase):
     def test_child_env_puts_factory_on_pythonpath(self):
-        from pipeline import pi
+        from siesta.pipeline import pi
         env = pi._child_env()
-        self.assertIn(str(pi.FACTORY), env["PYTHONPATH"].split(os.pathsep))
+        # the import root for `siesta.pipeline.kb` is the factory PARENT
+        self.assertIn(str(pi.FACTORY.parent),
+                      env["PYTHONPATH"].split(os.pathsep))
 
 
 if __name__ == "__main__":

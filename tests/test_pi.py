@@ -17,7 +17,7 @@ class ModelConfig(unittest.TestCase):
         self.assertEqual(ROLE["planner"]["model"], "glm-5.2:cloud")
         # Worker model is routing policy (see config/models.json) — assert
         # it is set and consistent with the config file, not frozen to a name.
-        from pipeline.pi import _role_config
+        from siesta.pipeline.pi import _role_config
         self.assertEqual(ROLE["worker"]["model"], _role_config()["worker"]["model"])
         self.assertEqual(ROLE["consultant"]["model"], "glm-5.2:cloud")
         self.assertEqual(ROLE["consultant"]["provider"], "pysiesta-ollama")
@@ -39,7 +39,7 @@ class Timeout(unittest.TestCase):
         with patch.dict(os.environ, {"SIESTA_PI_TIMEOUT": "7"}):
             import importlib
 
-            from pipeline import pi as pi_mod
+            from siesta.pipeline import pi as pi_mod
             importlib.reload(pi_mod)
             try:
                 self.assertEqual(pi_mod.PI_TIMEOUT, 7)

@@ -42,27 +42,41 @@ def _packaged(path: str) -> Path:
 
     pi reads skills/KB from disk paths, and the pipeline writes to kb/ —
     so the wheel's zipped data is unpacked to ~/.local/share/pysiesta/
-    on first run and refreshed whenever the packaged copy changes.
-    SIESTA_FACTORY (tests, custom setups) skips the store entirely.
+    on first run. SIESTA_FACTORY (tests, custom setups) skips the store.
+
+    'skills' and 'kb' are MUTABLE at runtime: the factory-learner edits
+    skills and the pipeline appends to the global KB. They are seeded
+    from the package only when missing — a package upgrade must NEVER
+    wipe learned content. 'agents_skills' and 'config' are read-only
+    copies and refresh whenever the packaged hash changes.
     """
     if os.environ.get("SIESTA_FACTORY"):
         return FACTORY / path
     base = Path(os.environ.get("SIESTA_DATA_HOME",
-                               Path.home() / ".local" / "share" / "pysiesta"))
+                               Path.home() / ".local" / "share" / "pysieta"))
     dest = base / path
-    src = resources.files("siesta") / path
-    marker = dest.parent / f".{dest.name}.version"
-    version = resources.files("siesta").joinpath("VERSION").read_text().strip()
-    current = f"{version}:{_tree_hash(src)}"
-    if marker.exists() and marker.read_text() == current and dest.exists():
-        return dest
+    mutable = path in ("skills", "kb")
+    if mutable:
+        if dest.exists():
+            return dest               # learned content — never overwrite
+    else:
+        src = resources.files("siesta") / path
+        marker = dest.parent / f".{dest.name}.version"
+        version = resources.files("siesta").joinpath("VERSION").read_text().strip()
+        current = f"{version}:{_tree_hash(src)}"
+        if marker.exists() and marker.read_text() == current and dest.exists():
+            return dest
     import shutil
     if dest.exists():
         shutil.rmtree(dest, ignore_errors=True)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    with resources.as_file(src) as tmp:
+    with resources.as_file(resources.files("siesta") / path) as tmp:
         shutil.copytree(tmp, dest)
-    marker.write_text(current)
+    if not mutable:
+        marker = dest.parent / f".{dest.name}.version"
+        marker.write_text(
+            resources.files("siesta").joinpath("VERSION").read_text().strip()
+            + ":" + _tree_hash(resources.files("siesta") / path))
     return dest
 
 
@@ -135,9 +149,22 @@ def _provider_id(role_entry: dict, providers: dict) -> str:
 
 
 _role_cfg, _providers_cfg = _load_role_config()
-ROLE = {r: {"model": cfg["model"],
-            "provider": _provider_id(cfg, _providers_cfg)}
-        for r, cfg in _role_cfg.items()}
+
+
+def _role(role: str) -> dict:
+    """Current routing for a role: {model, provider} — reloaded whenever
+    the effective config changes (GUI save invalidates the cache), so a
+    config change takes effect on the very next model call."""
+    role_cfg, providers = _load_role_config()
+    entry = role_cfg[role]
+    return {"model": entry["model"],
+            "provider": _provider_id(entry, providers)}
+
+
+# Kept for backwards compatibility (tests import it) — snapshot of the
+# routing as of first import. Callers that must see config changes should
+# use _role() instead.
+ROLE = {r: _role(r) for r in ("planner", "worker", "consultant")}
 
 
 def sync_providers() -> None:
@@ -266,8 +293,9 @@ def _child_env() -> dict:
     KB shim works when pysiesta runs inside `uv run`'s environment (where
     `python3` on PATH may be a different interpreter without siesta)."""
     path = os.environ.get("PYTHONPATH", "")
+    # FACTORY is .../siesta; the import root for `siesta.pipeline.kb` is its parent
     env = {**os.environ,
-           "PYTHONPATH": f"{FACTORY}{os.pathsep}{path}".rstrip(os.pathsep)}
+           "PYTHONPATH": f"{FACTORY.parent}{os.pathsep}{path}".rstrip(os.pathsep)}
     py_bin = str(Path(sys.executable).parent)
     env["PATH"] = f"{py_bin}{os.pathsep}{env.get('PATH', '')}"
     return env
@@ -288,9 +316,10 @@ def build_args(role: str, body: str, user: str, *, skills=(), thinking: str = "o
     args = [PI_BIN]
     if not interactive:
         args.append("-p")
-    args += ["--model", ROLE[role]["model"],
-             "--provider", ROLE[role]["provider"],
-             "--thinking", _safe_thinking(ROLE[role]["model"], thinking)]
+    routing = _role(role)
+    args += ["--model", routing["model"],
+             "--provider", routing["provider"],
+             "--thinking", _safe_thinking(routing["model"], thinking)]
     if tools == "no":
         args += ["--no-tools"]
     elif tools:
