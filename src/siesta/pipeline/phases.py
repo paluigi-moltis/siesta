@@ -18,8 +18,17 @@ from pathlib import Path
 
 from siesta.pipeline import learn, text
 from siesta.pipeline.kb import Graph
-from siesta.pipeline.pi import (CONFIG, FACTORY_SKILLS, GLOBAL_KB, SKILLS, err, log,
-                         ok, run_pi, warn)
+from siesta.pipeline.pi import (
+    CONFIG,
+    FACTORY_SKILLS,
+    GLOBAL_KB,
+    SKILLS,
+    err,
+    log,
+    ok,
+    run_pi,
+    warn,
+)
 
 WORKER_THINKING = "off"
 CONSULTANT_THINKING = "off"
@@ -697,7 +706,7 @@ def execute(proj: Path, kb: Graph) -> list[int]:
                                 "Two consecutive red suites survived their "
                                 "repair attempt. Continuing would build "
                                 "every remaining issue on a broken base.")
-                        _commit(proj, f"🚧 Phase 3 halted: unrepairable suite")
+                        _commit(proj, "🚧 Phase 3 halted: unrepairable suite")
                         raise SystemExit(1)
                     warn(f"Regression stayed red before issue #{num}: "
                          f"skipping it.")
@@ -993,13 +1002,13 @@ def _is_entry_point(source: str) -> bool:
     for i, line in enumerate(lines):
         if re.match(r'^if __name__\s*==\s*["\']__main__["\']\s*:\s*$', line):
             body = []
-            for l in lines[i + 1:]:
-                if not l.strip():
+            for ln in lines[i + 1:]:
+                if not ln.strip():
                     continue
-                if len(l) - len(l.lstrip()) == 0:
+                if len(ln) - len(ln.lstrip()) == 0:
                     break  # dedented: the guard block ended
-                if not l.lstrip().startswith("#"):
-                    body.append(l.strip())
+                if not ln.lstrip().startswith("#"):
+                    body.append(ln.strip())
             real = "".join(body)
             return bool(real) and real not in ("pass", "...")
     return False

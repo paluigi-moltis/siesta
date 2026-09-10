@@ -7,9 +7,13 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from siesta.pipeline import providers
-from siesta.pipeline.providers import (ProviderError, check_env_vars,
-                                       load_providers, provider_to_catalog_entry,
-                                       sync_to_pi_catalog)
+from siesta.pipeline.providers import (
+    ProviderError,
+    check_env_vars,
+    load_providers,
+    provider_to_catalog_entry,
+    sync_to_pi_catalog,
+)
 
 
 def sample(pid="remote", **over):

@@ -6,11 +6,8 @@ final state is 'done'.
 """
 import os
 import shutil
-import subprocess
-import sys
 import tempfile
 import threading
-import time
 import unittest
 import unittest.mock as mock
 from pathlib import Path

@@ -243,7 +243,8 @@ def _child_env() -> dict:
     KB shim works when pysiesta runs inside `uv run`'s environment (where
     `python3` on PATH may be a different interpreter without siesta)."""
     path = os.environ.get("PYTHONPATH", "")
-    env = {**os.environ, "PYTHONPATH": f"{FACTORY}{os.pathsep}{path}".rstrip(os.pathsep)}
+    env = {**os.environ,
+           "PYTHONPATH": f"{FACTORY}{os.pathsep}{path}".rstrip(os.pathsep)}
     py_bin = str(Path(sys.executable).parent)
     env["PATH"] = f"{py_bin}{os.pathsep}{env.get('PATH', '')}"
     return env

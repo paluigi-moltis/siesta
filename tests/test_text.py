@@ -2,7 +2,6 @@ import unittest
 
 from siesta.pipeline import text
 
-
 ISSUES_MD = """\
 Some preamble text.
 

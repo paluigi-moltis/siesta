@@ -4,7 +4,6 @@ Ports factory/hooks/learn-issue.sh and factory/scripts/learn.sh. The parse-
 and-act side is unit-tested; the model calls are exercised via fake-pi.
 """
 import re
-import sys
 from pathlib import Path
 
 from siesta.pipeline import text

@@ -42,12 +42,19 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/siesta"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"src/siesta/pipeline" = "siesta/pipeline"
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 88
 src = ["src", "tests"]
+# pragmatic set: correctness + imports + pyupgrade; the inherited upstream
+# codebase intentionally uses blind excepts / unchecked subprocess calls in
+# guards and tests — not worth churning 200 passing tests over.
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+[tool.ruff.lint.per-file-ignores]
+# inherited prose-heavy code (prompts, markers, URLs) — cosmetic only
+"src/siesta/pipeline/phases.py" = ["E501"]
+"src/siesta/pipeline/learn.py" = ["E501"]
+"tests/*" = ["E501"]

@@ -4,8 +4,6 @@ Same pipeline as the GUI, but the interview (when not --auto) streams to
 the terminal. GUI users never need this; it exists for automation/CI.
 """
 import argparse
-import sys
-from pathlib import Path
 
 from siesta.pipeline import pi
 
@@ -23,8 +21,9 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     if not args.idea:
         parser.error('missing idea — e.g. pysiesta-cli "build a pomodoro CLI"')
-    from siesta.pipeline.providers import check_env_vars, load_providers
     import json
+
+    from siesta.pipeline.providers import check_env_vars, load_providers
     try:
         missing = check_env_vars(load_providers(
             json.loads(pi.CONFIG.read_text())))

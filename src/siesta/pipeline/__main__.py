@@ -14,8 +14,18 @@ from pathlib import Path
 
 from siesta.pipeline import learn, phases, text
 from siesta.pipeline.kb import Graph
-from siesta.pipeline.pi import (FACTORY, GLOBAL_KB, ROLE, _declared_context,
-                         warn_if_context_mismatch, err, log, ok, phase, warn)
+from siesta.pipeline.pi import (
+    FACTORY,
+    GLOBAL_KB,
+    ROLE,
+    _declared_context,
+    err,
+    log,
+    ok,
+    phase,
+    warn,
+    warn_if_context_mismatch,
+)
 
 PHASE_ORDER = ["phase-0", "phase-1", "phase-2", "phase-3",
                "phase-4", "phase-5", "complete"]
@@ -164,7 +174,8 @@ def _run(args) -> None:
         if not checkpoint.exists():
             return False
         value = checkpoint.read_text().strip()
-        return value in PHASE_ORDER and PHASE_ORDER.index(value) >= PHASE_ORDER.index(ph)
+        return (value in PHASE_ORDER
+                and PHASE_ORDER.index(value) >= PHASE_ORDER.index(ph))
 
     def mark(value: str) -> None:
         # Only ever move forward; a skipped phase must not rewind.

@@ -38,6 +38,7 @@ class Timeout(unittest.TestCase):
         from unittest.mock import patch
         with patch.dict(os.environ, {"SIESTA_PI_TIMEOUT": "7"}):
             import importlib
+
             from pipeline import pi as pi_mod
             importlib.reload(pi_mod)
             try:
@@ -121,9 +122,8 @@ class StderrSeparation(unittest.TestCase):
 
     def test_stderr_persisted_below_separator(self):
         import subprocess as sp
-        from unittest.mock import patch
         import tempfile
-        from pathlib import Path
+        from unittest.mock import patch
         with tempfile.TemporaryDirectory() as d:
             artifact = Path(d) / "out.txt"
             with patch.object(sp, "run", return_value=self._result(
@@ -198,7 +198,6 @@ class ServedContext(unittest.TestCase):
 
     def test_declared_context_reads_the_pi_catalog(self):
         import tempfile
-        from pathlib import Path
         with tempfile.TemporaryDirectory() as d:
             catalog = Path(d) / "models.json"
             catalog.write_text('{"providers": {"ollama": {"models": ['
@@ -208,7 +207,6 @@ class ServedContext(unittest.TestCase):
 
     def test_declared_context_none_when_catalog_or_model_missing(self):
         import tempfile
-        from pathlib import Path
         with tempfile.TemporaryDirectory() as d:
             with patch.object(pi, "PI_CATALOG", Path(d) / "nope.json"):
                 self.assertIsNone(pi._declared_context("gemma4:latest"))

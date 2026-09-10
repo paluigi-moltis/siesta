@@ -231,9 +231,9 @@ class PipelineRun(unittest.TestCase):
         # the consultant (#46) — 2 per-issue + 1 project learning
         self.assertEqual(self.log_count("--model worker-model"), 4)
         log = (self.tmp / "pi_calls.log").read_text().splitlines()
-        learner_calls = [l for l in log if "factory-learner/" in l]
+        learner_calls = [ln for ln in log if "factory-learner/" in ln]
         self.assertEqual(len(learner_calls), 3)
-        self.assertTrue(all("--model consultant-model" in l for l in learner_calls))
+        self.assertTrue(all("--model consultant-model" in ln for ln in learner_calls))
 
     def test_happy_path_kb_and_git(self):
         result = self.siesta("--auto", self.idea)
@@ -425,8 +425,8 @@ class PipelineRun(unittest.TestCase):
         self.assertIn("0 blocked", result.stdout)
         self.assertEqual(self.types(self.kb(), "blocker"), [])
         # repair call carried the debugging skill and the red suite output
-        repair_calls = [l for l in (self.tmp / "pi_calls.log").read_text()
-                        .splitlines() if "egression suite is RED" in l]
+        repair_calls = [ln for ln in (self.tmp / "pi_calls.log").read_text()
+                        .splitlines() if "egression suite is RED" in ln]
         self.assertEqual(len(repair_calls), 1)
 
     def test_unrepairable_suite_skips_issue_with_honest_blocker(self):
@@ -522,10 +522,10 @@ class PipelineRun(unittest.TestCase):
         # the proxy was never consulted for review approval
         self.assertFalse((self.proj() / "proxy_review_output.txt").exists())
         log = (self.tmp / "pi_calls.log").read_text().splitlines()
-        self.assertEqual(len([l for l in log
-                               if "Evaluate if this review meets" in l]), 0)
+        self.assertEqual(len([ln for ln in log
+                               if "Evaluate if this review meets" in ln]), 0)
         # one degenerate review + one fix pass with write tools
-        review_calls = [l for l in log if "Fix review issues" in l]
+        review_calls = [ln for ln in log if "Fix review issues" in ln]
         self.assertEqual(len(review_calls), 1)
         self.assertNotIn("--no-tools", review_calls[0])
         fix_log = subprocess.run(["git", "-C", str(self.proj()), "log", "--oneline"],
