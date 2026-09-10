@@ -2,8 +2,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from pipeline import pi
-from pipeline.pi import ROLE, build_args
+from siesta.pipeline import pi
+from siesta.pipeline.pi import ROLE, build_args
 
 
 class ModelConfig(unittest.TestCase):

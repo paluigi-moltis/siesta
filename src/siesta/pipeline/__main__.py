@@ -5,15 +5,16 @@ final summary. Phase bodies live in pipeline/phases.py, learning in
 pipeline/learn.py.
 """
 import argparse
+import os
 import re
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-from pipeline import learn, phases, text
-from pipeline.kb import Graph
-from pipeline.pi import (FACTORY, GLOBAL_KB, ROLE, _declared_context,
+from siesta.pipeline import learn, phases, text
+from siesta.pipeline.kb import Graph
+from siesta.pipeline.pi import (FACTORY, GLOBAL_KB, ROLE, _declared_context,
                          warn_if_context_mismatch, err, log, ok, phase, warn)
 
 PHASE_ORDER = ["phase-0", "phase-1", "phase-2", "phase-3",
@@ -85,6 +86,8 @@ def main(argv: list[str] | None = None) -> None:
                     help="skip the interview; use the idea as the intent")
     ap.add_argument("--resume", action="store_true",
                     help="skip phases already completed per checkpoint")
+    ap.add_argument("--intent-file", type=Path, default=None,
+                    help=argparse.SUPPRESS)  # GUI: pre-recorded interview
     ap.add_argument("idea", nargs="?")
     args = ap.parse_args(argv)
     if not args.idea:
@@ -102,10 +105,20 @@ def main(argv: list[str] | None = None) -> None:
         raise
 
 
+def projects_dir() -> Path:
+    """Where generated projects land.
+
+    SIESTA_PROJECTS_DIR (set by the GUI from the configured working
+    directory) wins; otherwise the factory's own projects/ tree.
+    """
+    override = os.environ.get("SIESTA_PROJECTS_DIR")
+    return Path(override) if override else FACTORY / "projects"
+
+
 def _failure_learn(args, e) -> None:
     """Even on failure, log what went wrong to both KBs (was the EXIT trap)."""
     name = slug(args.idea)
-    proj = FACTORY / "projects" / name
+    proj = projects_dir() / name
     checkpoint = proj / ".pipeline-checkpoint"
     last = checkpoint.read_text().strip() if checkpoint.exists() else "none"
     warn(f"Pipeline failed ({type(e).__name__}: {e}). Logging failure to KB...")
@@ -121,7 +134,7 @@ def _failure_learn(args, e) -> None:
 def _run(args) -> None:
     idea = args.idea
     name = slug(idea)
-    proj = FACTORY / "projects" / name
+    proj = projects_dir() / name
     checkpoint = proj / ".pipeline-checkpoint"
     log(f"Creating project: {name}")
     _warn_context_mismatches()
@@ -171,7 +184,8 @@ def _run(args) -> None:
         log("Phase 0 already complete (resume mode), skipping...")
     else:
         phase(0, "INTENT — Define the idea")
-        intent, intent_node = phases.phase0(proj, name, idea, args.auto, kb)
+        intent, intent_node = phases.phase0(
+            proj, name, idea, args.auto, kb, intent_file=args.intent_file)
     mark("phase-0")
 
     # ─── PHASE 1: SPEC ───────────────────────────────────────────────────

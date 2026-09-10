@@ -1,6 +1,6 @@
 import unittest
 
-from pipeline import text
+from siesta.pipeline import text
 
 
 ISSUES_MD = """\

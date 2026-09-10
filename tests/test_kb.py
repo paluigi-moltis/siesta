@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pipeline.kb import Graph
+from siesta.pipeline.kb import Graph
 
 
 class GraphNodes(unittest.TestCase):

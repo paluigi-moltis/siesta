@@ -12,8 +12,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from pipeline import phases
-from pipeline.kb import Graph
+from siesta.pipeline import phases
+from siesta.pipeline.kb import Graph
 
 SPEC_TEXT = "# Spec\n\nA tiny caesar cipher CLI in Python, stdlib only.\n"
 

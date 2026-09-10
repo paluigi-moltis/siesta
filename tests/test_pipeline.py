@@ -3,8 +3,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from pipeline import __main__ as pipeline_main
-from pipeline import phases
+from siesta.pipeline import __main__ as pipeline_main
+from siesta.pipeline import phases
 
 
 def _proj(test_body: str | None) -> Path:

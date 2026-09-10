@@ -16,7 +16,7 @@ import unittest
 from pathlib import Path
 from uuid import uuid4
 
-from pipeline import phases
+from siesta.pipeline import phases
 
 FACTORY = Path(__file__).resolve().parent.parent / "src" / "siesta"
 STUB = r"""#!/bin/bash

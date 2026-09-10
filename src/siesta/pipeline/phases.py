@@ -16,9 +16,9 @@ import time
 import urllib.request
 from pathlib import Path
 
-from pipeline import learn, text
-from pipeline.kb import Graph
-from pipeline.pi import (CONFIG, FACTORY_SKILLS, GLOBAL_KB, SKILLS, err, log,
+from siesta.pipeline import learn, text
+from siesta.pipeline.kb import Graph
+from siesta.pipeline.pi import (CONFIG, FACTORY_SKILLS, GLOBAL_KB, SKILLS, err, log,
                          ok, run_pi, warn)
 
 WORKER_THINKING = "off"
@@ -150,10 +150,17 @@ defaults made explicit>"""
 
 
 def phase0(proj: Path, name: str, idea: str, auto: bool,
-           kb: Graph) -> tuple[str, str]:
-    """Interview (or auto-fill) the idea. Returns (intent, kb node id)."""
+           kb: Graph, intent_file: Path | None = None) -> tuple[str, str]:
+    """Interview (or auto-fill) the idea. Returns (intent, kb node id).
+
+    intent_file (GUI mode): a transcript already recorded by the GUI
+    interview — copied in place of a terminal interview, then parsed
+    exactly like an interactive one (marker + closeout fallbacks).
+    """
     out = proj / "interview_output.txt"
-    if auto:
+    if intent_file is not None:
+        out.write_text(Path(intent_file).read_text(errors="replace"))
+    elif auto:
         log("Auto mode: using idea description as intent (no interview)")
         out.write_text(f"INTENT_FINALIZED: {idea}")
     else:

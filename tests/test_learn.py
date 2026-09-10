@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pipeline import learn
-from pipeline.kb import Graph
+from siesta.pipeline import learn
+from siesta.pipeline.kb import Graph
 
 LEARNER_OUTPUT = """\
 ISSUE_LEARNING #2:

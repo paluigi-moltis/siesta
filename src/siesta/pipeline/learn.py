@@ -7,9 +7,9 @@ import re
 import sys
 from pathlib import Path
 
-from pipeline import text
-from pipeline.kb import Graph
-from pipeline.pi import FACTORY_SKILLS, log, ok, run_pi, warn
+from siesta.pipeline import text
+from siesta.pipeline.kb import Graph
+from siesta.pipeline.pi import FACTORY_SKILLS, log, ok, run_pi, warn
 
 # "ISSUE_LEARNING #2:" / "PROJECT_LEARNING:" report blocks
 ISSUE_LEARN = re.compile(r"^ISSUE_LEARNING.*$", re.M)
