@@ -599,16 +599,18 @@ class PySiestaApp:
             from siesta.pipeline.providers import load_providers
             normalized = load_providers(models)   # validation
             config_store.save_models(models)
-            # re-resolve routing in this process + sync pi's catalog
+            # re-resolve routing in this process + sync pi's catalog;
+            # the pipeline subprocess reads the same saved file on launch
             import siesta.pipeline.pi as pi
-            pi.CONFIG = config_store.models_file()
             pi._ROLE_CONFIG = None
             pi._PROVIDERS = None
+            pi._CONFIG_LOADED_FROM = None
             pi.sync_providers()
             missing = check_env_vars(normalized)
             msg = "Configuration saved ✓ (providers registered with pi)."
             if missing:
-                msg += f" ⚠ env var(s) not set: {', '.join(missing)}"
+                msg += (f" ⚠ env var(s) not set: {', '.join(missing)} — "
+                        "set them before starting a build")
             self.config_status.current.value = msg
         except Exception as ex:
             self.config_status.current.value = f"Error: {ex}"

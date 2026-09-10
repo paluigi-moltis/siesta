@@ -94,6 +94,11 @@ def load_providers(config: dict) -> dict[str, dict]:
 
 
 def _resolve_key(provider: dict) -> str:
+    """Resolve a provider's API key from its named env var (or a placeholder).
+
+    Kept for callers that need the concrete value; the catalog itself only
+    ever stores the env-var NAME.
+    """
     env = provider.get("api_key_env")
     if not env:
         return "ollama"          # local daemons accept any non-empty key
@@ -111,19 +116,24 @@ def check_env_vars(providers: dict[str, dict]) -> list[str]:
 
 
 def provider_to_catalog_entry(pid: str, provider: dict) -> dict:
-    """Normalized provider → an entry for pi's ~/.pi/agent/models.json."""
-    key = _resolve_key(provider)
-    if provider["api_key_env"] and not key:
-        raise ProviderError(
-            f"Provider {pid!r}: environment variable "
-            f"{provider['api_key_env']} is not set — cannot register with pi")
+    """Normalized provider → an entry for pi's ~/.pi/agent/models.json.
+
+    The API key is passed as the ENV-VAR NAME (pi resolves it at request
+    time), so keys only need to exist where `pi` actually runs and are
+    never copied into the catalog file.
+    """
+    api_key_env = provider.get("api_key_env")
+    if api_key_env and not os.environ.get(api_key_env):
+        # still register — pi resolves lazily — but the run will fail on
+        # first call; the GUI warns about this at save time.
+        pass
     ctx = provider.get("context_window", DEFAULT_CONTEXT_WINDOW)
     mt = provider.get("max_tokens", DEFAULT_MAX_TOKENS)
     entry = {
         "name": f"PySiesta {pid}",
         "baseUrl": provider["endpoint"],
         "api": PROVIDER_API_MAP[provider["type"]],
-        "apiKey": key or pid,
+        "apiKey": api_key_env or "ollama",
         "models": [{
             "id": m,
             "name": m,

@@ -19,6 +19,8 @@ import urllib.request
 from importlib import resources
 from pathlib import Path
 
+from siesta import config_store
+
 PI_BIN = "pi"
 
 # #10: a hung pi/Ollama call must never freeze the pipeline — stop.md only
@@ -82,19 +84,40 @@ FACTORY_SKILLS = _packaged("skills")
 GLOBAL_KB = _packaged("kb") / "global-graph.json"
 CONFIG = _packaged("config") / "models.json"
 
+
+def _effective_config() -> Path:
+    """Config precedence: user's saved config > packaged default.
+
+    The GUI saves to ~/.config/siesta/models.json; every pipeline run
+    (GUI subprocess or pysiesta-cli) picks it up from here. A stale
+    _ROLE_CONFIG cache is invalidated whenever the effective file changes.
+    """
+    user = os.environ.get("SIESTA_MODELS_FILE")
+    if user:
+        p = Path(user)
+        if p.exists():
+            return p
+    default = config_store.models_file()
+    if default.exists():
+        return default
+    return CONFIG
+
 _ROLE_CONFIG: dict | None = None
 _PROVIDERS: dict | None = None
+_CONFIG_LOADED_FROM: Path | None = None
 
 
 def _load_role_config() -> tuple[dict, dict]:
     """Parsed models.json — (role → {provider, model}, provider entries)."""
-    global _ROLE_CONFIG, _PROVIDERS
-    if _ROLE_CONFIG is None or _PROVIDERS is None:
+    global _ROLE_CONFIG, _PROVIDERS, _CONFIG_LOADED_FROM
+    effective = _effective_config()
+    if _ROLE_CONFIG is None or _PROVIDERS is None or _CONFIG_LOADED_FROM != effective:
         from siesta.pipeline.providers import load_providers
-        raw = json.loads(CONFIG.read_text())
+        raw = json.loads(effective.read_text())
         _ROLE_CONFIG = {r: {"provider": raw[r]["provider"], "model": raw[r]["model"]}
                         for r in ("planner", "worker", "consultant")}
         _PROVIDERS = load_providers(raw)
+        _CONFIG_LOADED_FROM = effective
     return _ROLE_CONFIG, _PROVIDERS
 
 

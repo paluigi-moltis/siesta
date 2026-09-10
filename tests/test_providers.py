@@ -73,19 +73,22 @@ class CatalogEntry(unittest.TestCase):
                 "p", sample(type=ptype, api_key_env=None)["remote"])
             self.assertEqual(entry["api"], api)
 
-    def test_env_key_resolved(self):
+    def test_env_key_passed_as_name_not_value(self):
+        # pi resolves the env var at request time; the catalog stores the
+        # NAME so the key value never lands on disk in the catalog.
         with TemporaryDirectory() as d:
             catalog = Path(d) / "models.json"
             with mock.patch.dict(os.environ, {"EXAMPLE_API_KEY": "sk-123"}):
                 sync_to_pi_catalog(sample(), catalog)
             entry = json.loads(catalog.read_text())["providers"]["pysiesta-remote"]
-            self.assertEqual(entry["apiKey"], "sk-123")
+            self.assertEqual(entry["apiKey"], "EXAMPLE_API_KEY")
+            self.assertNotIn("sk-123", catalog.read_text())
 
-    def test_unset_env_key_rejected(self):
-        key = "PYTEST_DEFINITELY_NOT_SET_VAR"
-        with mock.patch.dict(os.environ, {}, clear=True):
-            with self.assertRaises(ProviderError):
-                provider_to_catalog_entry("p", sample(api_key_env=key)["remote"])
+    def test_unset_env_key_still_registers(self):
+        # registration is lazy: pi resolves at request time, so an unset
+        # var only fails the run, not the sync
+        entry = provider_to_catalog_entry("p", sample()["remote"])
+        self.assertEqual(entry["apiKey"], "EXAMPLE_API_KEY")
 
     def test_ollama_needs_no_key(self):
         entry = provider_to_catalog_entry("p", sample(api_key_env=None)["remote"])

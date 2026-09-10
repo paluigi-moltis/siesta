@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> None:
     from siesta.pipeline.providers import check_env_vars, load_providers
     try:
         missing = check_env_vars(load_providers(
-            json.loads(pi.CONFIG.read_text())))
+            json.loads(pi._effective_config().read_text())))
     except Exception:
         missing = []
     if missing:
